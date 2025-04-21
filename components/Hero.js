@@ -1,0 +1,766 @@
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import DownloadModal from './DownloadModal';
+
+const Hero = () => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [highlightedStar, setHighlightedStar] = useState(0);
+  const [animationComplete, setAnimationComplete] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [typing, setTyping] = useState('');
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const [isTyping, setIsTyping] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showCursor, setShowCursor] = useState(true);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [glitching, setGlitching] = useState(false);
+  const [hoverButtons, setHoverButtons] = useState({ download: false, learn: false });
+  const [particleHighlight, setParticleHighlight] = useState(null);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const heroRef = useRef(null);
+  const imageRef = useRef(null);
+  const buttonRefs = useRef([]);
+  const textToType = ['rise', 'flex', 'shine', 'crush', 'lead', 'win', 'outplay', 'outdo', 'climb', 'excel', 'earn', 'soar', 'master'];
+  const typingSpeed = 80;
+  const deleteSpeed = 40;
+  const pauseBetweenWords = 1500;
+  const orbRefs = useRef([]);
+  const typingRef = useRef(null);
+
+  // Animate elements after component is mounted
+  useEffect(() => {
+    setIsLoaded(true);
+    setAnimationComplete(true);
+    
+    // Typing effect for headline
+    const headline = document.querySelector('.typing-headline');
+    if (headline) {
+      const text = headline.getAttribute('data-text');
+      const typingDelay = 70;
+      let i = 0;
+      
+      headline.textContent = '';
+      
+      const typeWriter = () => {
+        if (i < text.length) {
+          headline.textContent += text.charAt(i);
+          i++;
+          setTimeout(typeWriter, typingDelay);
+        } else {
+          headline.classList.add('typing-done');
+        }
+      };
+      
+      setTimeout(typeWriter, 500);
+    }
+
+    // Trigger glitch effect less frequently and only when fully loaded
+    const glitchInterval = setInterval(() => {
+      if (animationComplete) {
+        setGlitching(true);
+        setTimeout(() => setGlitching(false), 150);
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(glitchInterval);
+    };
+  }, []);
+
+  // Animation for the floating orbs - less aggressive movement
+  useEffect(() => {
+    if (!animationComplete) return;
+    
+    // Setup floating animation for background orbs
+    const orbs = document.querySelectorAll('.floating-orb');
+    
+    orbs.forEach((orb, index) => {
+      const delay = index * 1000;
+      const duration = 5000 + Math.random() * 2000; // Longer duration for smoother movement
+      
+      if (orb instanceof HTMLElement) {
+        orb.style.animation = `float ${duration}ms ease-in-out ${delay}ms infinite alternate`;
+      }
+    });
+  }, [animationComplete]);
+
+  // Enhanced typing animation with smoother transitions
+  useEffect(() => {
+    const typingTimeout = setTimeout(() => {
+      if (isTyping && !isDeleting) {
+        if (typing.length < textToType[currentWordIndex].length) {
+          // Type the current word with a small random delay for a more natural effect
+          setTyping(textToType[currentWordIndex].substring(0, typing.length + 1));
+        } else {
+          // Pause at the end of the word before deleting
+          setIsTyping(false);
+          setTimeout(() => {
+            setIsDeleting(true);
+            setIsTyping(true);
+          }, pauseBetweenWords);
+        }
+      } else if (isDeleting) {
+        if (typing.length > 0) {
+          // Delete the current word
+          setTyping(typing.substring(0, typing.length - 1));
+        } else {
+          // Move to next word
+          setIsDeleting(false);
+          setCurrentWordIndex((currentWordIndex + 1) % textToType.length);
+          
+          // Small pause before typing the next word
+          setIsTyping(false);
+          setTimeout(() => {
+            setIsTyping(true);
+          }, 300);
+        }
+      }
+    }, isDeleting ? deleteSpeed : typingSpeed);
+    
+    return () => clearTimeout(typingTimeout);
+  }, [typing, isTyping, isDeleting, currentWordIndex]);
+
+  // Blinking cursor effect
+  useEffect(() => {
+    const cursorInterval = setInterval(() => {
+      setShowCursor(prev => !prev);
+    }, 530); // Slightly faster than standard cursor blink for a modern feel
+    
+    return () => clearInterval(cursorInterval);
+  }, []);
+
+  // Mouse movement effect for tilt and particle interaction - with reduced intensity
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!heroRef.current) return;
+      
+      const rect = heroRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      
+      // Update mouse position for background parallax - constrain movement
+      setMousePosition({ 
+        x: Math.max(-0.5, Math.min(0.5, x / (rect.width * 3))), 
+        y: Math.max(-0.5, Math.min(0.5, y / (rect.height * 3))) 
+      });
+      
+      // Subtle tilt effect - reduced intensity
+      setTilt({
+        x: y / 150,
+        y: -x / 150
+      });
+      
+      // Check if mouse is near any orbs - reduced intensity
+      orbRefs.current.forEach((orb, index) => {
+        if (!orb) return;
+        
+        const orbRect = orb.getBoundingClientRect();
+        const orbX = orbRect.left + orbRect.width / 2;
+        const orbY = orbRect.top + orbRect.height / 2;
+        
+        const distance = Math.sqrt(
+          Math.pow(e.clientX - orbX, 2) + 
+          Math.pow(e.clientY - orbY, 2)
+        );
+        
+        if (distance < 100) {
+          // Repel effect - reduced force
+          const angle = Math.atan2(e.clientY - orbY, e.clientX - orbX);
+          const force = (100 - distance) / 20;
+          
+          orb.style.transform = `translate(${Math.cos(angle) * force}px, ${Math.sin(angle) * force}px)`;
+          
+          // Highlight effect
+          if (distance < 50) {
+            orb.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+            orb.style.boxShadow = '0 0 5px rgba(255, 255, 255, 0.5)';
+            setParticleHighlight(index);
+          }
+        } else {
+          // Reset
+          orb.style.transform = '';
+          orb.style.backgroundColor = '';
+          orb.style.boxShadow = '';
+          
+          if (particleHighlight === index) {
+            setParticleHighlight(null);
+          }
+        }
+      });
+      
+      // Button hover effect - reduced intensity
+      buttonRefs.current.forEach((button, index) => {
+        if (!button) return;
+        
+        const buttonRect = button.getBoundingClientRect();
+        const buttonX = buttonRect.left + buttonRect.width / 2;
+        const buttonY = buttonRect.top + buttonRect.height / 2;
+        
+        const distance = Math.sqrt(
+          Math.pow(e.clientX - buttonX, 2) + 
+          Math.pow(e.clientY - buttonY, 2)
+        );
+        
+        if (distance < 100) {
+          const transformScale = 1 + (100 - distance) / 1000;
+          button.style.transform = `scale(${transformScale})`;
+        } else {
+          button.style.transform = '';
+        }
+      });
+    };
+    
+    const handleMouseLeave = () => {
+      setTilt({ x: 0, y: 0 });
+      
+      // Reset all orbs
+      orbRefs.current.forEach(orb => {
+        if (!orb) return;
+        orb.style.transform = '';
+        orb.style.backgroundColor = '';
+        orb.style.boxShadow = '';
+      });
+      
+      setParticleHighlight(null);
+      
+      // Reset all buttons
+      buttonRefs.current.forEach(button => {
+        if (!button) return;
+        button.style.transform = '';
+      });
+    };
+    
+    // Detect when section is in viewport
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    
+    if (heroRef.current) {
+      observer.observe(heroRef.current);
+    }
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseleave', handleMouseLeave);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseleave', handleMouseLeave);
+      if (heroRef.current) {
+        observer.disconnect();
+      }
+    };
+  }, [particleHighlight]);
+  
+  // Function to scroll to features section
+  const scrollToFeatures = () => {
+    const featuresSection = document.getElementById('features');
+    if (featuresSection) {
+      featuresSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+  
+  const handleDownloadClick = () => {
+    // Stop any ongoing animations before showing modal
+    if (heroRef.current) {
+      const elements = heroRef.current.querySelectorAll('.animate-gradient-shift, .animate-float-slow, .animate-grid-shift');
+      elements.forEach(el => {
+        if (el instanceof HTMLElement) {
+          el.style.animationPlayState = 'paused';
+        }
+      });
+    }
+    
+    // Show modal with a small delay to ensure animations are stopped
+    setTimeout(() => {
+      setShowDownloadModal(true);
+    }, 50);
+  };
+
+  return (
+    <section 
+      ref={heroRef}
+      className="relative min-h-screen flex items-center overflow-hidden pb-20" 
+      style={{ maxWidth: '100vw' }}
+    >
+      {/* Background gradient effects with constrained movement */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div 
+          className="absolute top-0 left-1/4 w-1/2 h-1/2 bg-purple-500/10 rounded-full blur-[120px] transform -translate-y-1/2"
+          style={{
+            transform: `translate(${mousePosition.x * 5}px, ${mousePosition.y * 5}px) translateY(-50%)`,
+            transition: 'transform 0.7s ease-out'
+          }}
+        ></div>
+        <div 
+          className="absolute bottom-0 right-1/4 w-1/2 h-1/2 bg-blue-500/10 rounded-full blur-[120px] transform translate-y-1/2"
+          style={{
+            transform: `translate(${-mousePosition.x * 5}px, ${-mousePosition.y * 5}px) translateY(50%)`,
+            transition: 'transform 0.7s ease-out'
+          }}
+        ></div>
+        
+        {/* Floating orbs with constrained movement */}
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(12)].map((_, i) => (
+            <div
+              key={i}
+              ref={el => orbRefs.current[i] = el}
+              className="absolute rounded-full floating-orb"
+              style={{
+                width: `${Math.random() * 4 + 2}px`,
+                height: `${Math.random() * 4 + 2}px`,
+                backgroundColor: particleHighlight === i 
+                  ? 'rgba(255, 255, 255, 0.3)' 
+                  : `rgba(${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, ${Math.random() * 255}, ${Math.random() * 0.1 + 0.05})`,
+                top: `${Math.random() * 100}%`,
+                left: `${Math.random() * 100}%`,
+                transition: 'transform 0.3s ease-out, background-color 0.3s ease, box-shadow 0.3s ease'
+              }}
+            />
+          ))}
+        </div>
+        
+        {/* Moving grid pattern with constrained movement */}
+        <div 
+          className="absolute inset-0 bg-grid-pattern opacity-5 animate-grid-shift"
+          style={{
+            transform: `translate(${mousePosition.x * -2}px, ${mousePosition.y * -2}px)`,
+            transition: 'transform 1.2s ease-out',
+            backgroundSize: '30px 30px'
+          }}
+        ></div>
+      </div>
+
+      <div className="container mx-auto px-4 relative z-10 max-w-screen-xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center py-10">
+          {/* Text content - smoother transitions */}
+          <div 
+            className="transition-all duration-700 transform opacity-100 translate-x-0"
+            style={{
+              transform: `perspective(1000px) rotateX(${tilt.x * 0.1}deg) rotateY(${tilt.y * 0.1}deg)`,
+              transition: 'transform 0.7s ease-out'
+            }}
+          >
+            <div className="relative mb-4">
+              <h1 className={`text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight ${glitching ? 'glitch-effect' : ''}`}>
+                <span className="block hover-glow cursor-default">Unleash Your</span>
+                <span className="block mt-1">
+                  <span 
+                    ref={typingRef}
+                    className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-600 animate-gradient-shift hover-glow cursor-default typing-text"
+                  >
+                    <span style={{ minHeight: '1.2em', display: 'block' }}>
+                      Potential to <span className="typing-word">{typing}</span>
+                      <span className={`typing-cursor ${showCursor ? 'opacity-100' : 'opacity-0'}`}>|</span>
+                    </span>
+                  </span>
+                </span>
+                <span className="block mt-1 hover-glow cursor-default">in The Finals</span>
+              </h1>
+            </div>
+            
+            <p 
+              className="text-gray-400 text-lg md:text-xl mb-8 max-w-xl transition-all duration-700 hover-glow-text cursor-default" 
+              style={{ 
+                transform: `perspective(1000px) rotateX(${tilt.x * 0.05}deg) rotateY(${tilt.y * 0.05}deg)`,
+                transition: 'transform 0.7s ease-out, color 0.3s ease'
+              }}
+              onMouseEnter={() => {
+                const p = document.querySelector('p.hover-glow-text');
+                if (p) p.style.color = 'rgba(255, 255, 255, 0.9)';
+              }}
+              onMouseLeave={() => {
+                const p = document.querySelector('p.hover-glow-text');
+                if (p) p.style.color = '';
+              }}
+            >
+              Experience the ultimate gaming companion designed to elevate your performance with advanced features, real-time analytics, and customizable settings.
+            </p>
+            
+            <div className="flex flex-col gap-6">
+              {/* Download count and active users stats */}
+              <div className="flex flex-col sm:flex-row gap-4 items-center mt-8">
+                <div className="flex items-center gap-2 text-sm p-2 rounded-lg glass-card">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500 bg-opacity-20">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span>10,000+ Downloads</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm p-2 rounded-lg glass-card">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 bg-opacity-20">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                    </svg>
+                  </div>
+                  <span>1,000+ Active Users</span>
+                </div>
+              </div>
+              
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button 
+                  ref={el => buttonRefs.current[0] = el}
+                  className="px-8 py-4 bg-gradient-to-br from-purple-600 via-indigo-500 to-blue-600 rounded-lg font-bold text-xl shadow-glow hover:shadow-glow-lg transform transition-all duration-300 group relative overflow-hidden"
+                  onMouseEnter={() => setHoverButtons({...hoverButtons, download: true})}
+                  onMouseLeave={() => setHoverButtons({...hoverButtons, download: false})}
+                  onClick={handleDownloadClick}
+                  style={{ opacity: 1 }}
+                >
+                  {/* Ribbon */}
+                  <div className="absolute -top-1 -right-1 h-24 w-24 overflow-hidden">
+                    <div className="absolute top-0 right-0 transform rotate-45 bg-green-500 text-white font-bold py-1 px-8 shadow-md translate-x-[6px] translate-y-[14px]">
+                      FREE
+                    </div>
+                  </div>
+                  
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-blue-600 opacity-70 blur-lg group-hover:opacity-100 transition-opacity duration-300" style={{ opacity: 1 }}></div>
+                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 opacity-30 group-hover:opacity-60 transition-all duration-300 blur" style={{ opacity: 1 }}></div>
+                  
+                  <span className="relative z-10 flex items-center justify-center transition-transform duration-300 transform group-hover:scale-105">
+                    <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 1 }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    <div className="flex flex-col items-center">
+                      <span className="text-shadow-glow" style={{ opacity: 1 }}>DOWNLOAD NOW</span>
+                      <span className="block text-sm font-normal opacity-90 group-hover:opacity-100 transition-all duration-300" style={{ opacity: 1 }}>Start dominating today!</span>
+                    </div>
+                  </span>
+                  <span className={`absolute inset-0 bg-gradient-to-br from-purple-700 via-indigo-600 to-blue-700 transition-opacity duration-300`} style={{ opacity: 1 }}></span>
+                  <span className="absolute inset-0 shine-effect"></span>
+                  
+                  {/* Particle effects on hover - limited number */}
+                  {hoverButtons.download && [...Array(5)].map((_, i) => (
+                    <span 
+                      key={i}
+                      className="absolute w-2 h-2 bg-white rounded-full animate-particle-fly"
+                      style={{
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        opacity: 0.8,
+                        animationDuration: `${Math.random() * 1 + 0.7}s`,
+                        animationDelay: `${Math.random() * 0.2}s`,
+                        '--particle-end-y': `${Math.random() * 80 - 40}px`,
+                        '--particle-end-x': `${Math.random() * 80 - 40}px`,
+                      }}
+                    />
+                  ))}
+                </button>
+                
+                <button 
+                  ref={el => buttonRefs.current[1] = el}
+                  className="px-6 py-3 bg-primary-500 text-white font-semibold rounded-lg shadow-lg hover:bg-primary-600 transform hover:translate-y-[-2px] transition-all duration-300 flex items-center gap-2"
+                  onClick={scrollToFeatures}
+                >
+                  Learn More
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l4.293-4.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Image/Mockup - stable rendering */}
+          <div
+            ref={imageRef}
+            className="relative opacity-100 translate-x-0"
+            style={{
+              transform: `perspective(1000px) rotateX(${-tilt.x * 0.15}deg) rotateY(${-tilt.y * 0.15}deg)`,
+              transition: 'transform 0.7s ease-out',
+              willChange: 'transform'
+            }}
+          >
+            <div className="relative bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-xl overflow-hidden border border-slate-700/30 shadow-xl mb-6 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]">
+              <div className="flex items-center bg-slate-900/80 px-4 py-2 border-b border-slate-700/30">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                  <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                  <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                </div>
+                <div className="mx-auto text-sm text-slate-400">The Finals Assistant</div>
+              </div>
+              
+              <div className="relative w-full aspect-[16/10]">
+                {/* Replace with your own screenshot/mockup using Image component */}
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-blue-600/10 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-600">Game Assistant</div>
+                    <div className="mt-4">
+                      <span className="px-4 py-2 bg-slate-800/70 rounded-lg border border-slate-700/50 text-sm">
+                        Your interactive screenshot here
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Feature highlights below the main image */}
+            <div className="grid grid-cols-3 gap-3">
+              {['Real-time Data', 'Custom Profiles', 'Auto Updates'].map((feature, idx) => (
+                <div 
+                  key={feature}
+                  className="glass-card p-3 rounded-lg text-center transform transition-all duration-300 hover:scale-105 hover:shadow-glow border border-slate-700/30 hover:border-slate-600/50 flex flex-col items-center cursor-default group"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center mb-2 group-hover:from-purple-500/50 group-hover:to-blue-500/50 transition-all duration-300">
+                    <span className="text-lg">
+                      {idx === 0 ? "📊" : idx === 1 ? "⚙️" : "🔄"}
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors duration-300">{feature}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Download Modal - conditionally rendered but with proper transition management */}
+      {showDownloadModal && (
+        <DownloadModal 
+          isVisible={showDownloadModal} 
+          onClose={() => {
+            setShowDownloadModal(false);
+            
+            // Resume animations after modal is closed
+            setTimeout(() => {
+              if (heroRef.current) {
+                const elements = heroRef.current.querySelectorAll('.animate-gradient-shift, .animate-float-slow, .animate-grid-shift');
+                elements.forEach(el => {
+                  if (el instanceof HTMLElement) {
+                    el.style.animationPlayState = 'running';
+                  }
+                });
+              }
+            }, 300);
+          }} 
+          downloadName="FinalsAssistant-v1.0.5.exe"
+        />
+      )}
+    </section>
+  );
+};
+
+// Add keyframes and advanced animations
+const AdvancedAnimations = `
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes grid-shift {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
+@keyframes grow-width {
+  0% {
+    width: 0;
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes glitch {
+  0% {
+    text-shadow: 2px 0 0 rgba(255, 0, 255, 0.7), -2px 0 0 rgba(0, 255, 255, 0.7);
+    transform: translate(2px, 0);
+  }
+  20% {
+    text-shadow: -2px 0 0 rgba(255, 0, 255, 0.7), 2px 0 0 rgba(0, 255, 255, 0.7);
+    transform: translate(-2px, 0);
+  }
+  40% {
+    text-shadow: 2px 0 0 rgba(255, 0, 255, 0.7), -2px 0 0 rgba(0, 255, 255, 0.7);
+    transform: translate(0, 2px);
+  }
+  60% {
+    text-shadow: 2px 0 0 rgba(255, 0, 255, 0.7), -2px 0 0 rgba(0, 255, 255, 0.7);
+    transform: translate(0, 0);
+  }
+  80% {
+    text-shadow: -2px 0 0 rgba(255, 0, 255, 0.7), 2px 0 0 rgba(0, 255, 255, 0.7);
+    transform: translate(-2px, 0);
+  }
+  100% {
+    text-shadow: 2px 0 0 rgba(255, 0, 255, 0.7), -2px 0 0 rgba(0, 255, 255, 0.7);
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.glitch-effect {
+  animation: glitch 0.3s infinite;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+.glow-overlay {
+  background: radial-gradient(circle at center, rgba(123, 97, 255, 0.3) 0%, transparent 70%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.image-grain::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.1;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.text-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: reveal 0.8s forwards;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.count-up {
+  position: relative;
+  overflow: hidden;
+}
+
+.count-up::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-pulse-fast {
+  animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.pulse-on-hover:hover {
+  animation: pulse 1.5s infinite;
+}
+
+.shine-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine-effect::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
+  transform: skewX(-25deg);
+  transition: none;
+}
+
+.shine-effect:hover::before {
+  left: 150%;
+  transition: 0.75s all;
+}
+
+.hover-text-expand {
+  transition: letter-spacing 0.3s, color 0.3s;
+}
+
+.hover-text-expand:hover {
+  letter-spacing: 0.5px;
+  color: #ffffff;
+}
+
+.glow-on-hover:hover {
+  text-shadow: 0 0 8px rgba(255,255,255,0.7);
+}
+
+.typing-text {
+  display: inline-block;
+  position: relative;
+}
+
+.typing-word {
+  display: inline-block;
+  min-width: 10px;
+}
+
+.typing-cursor {
+  display: inline-block;
+  margin-left: 1px;
+  font-weight: 300;
+  transition: opacity 0.2s ease-in-out;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(123, 97, 255, 0.8);
+  position: relative;
+  top: -2px;
+}
+`;
+
+// Add style tag to document head
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = AdvancedAnimations;
+  document.head.appendChild(style);
+}
+
+export default Hero; 
