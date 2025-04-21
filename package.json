@@ -10,7 +10,7 @@
     "lint": "next lint",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d out",
-    "export": "next build && next export"
+    "export": "next build"
   },
   "dependencies": {
     "framer-motion": "^12.7.4",
