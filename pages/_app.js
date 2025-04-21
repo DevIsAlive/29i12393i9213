@@ -147,3 +147,6 @@ function MyApp({ Component, pageProps }) {
     </div>
   );
 }
+
+// Add proper default export
+export default MyApp;

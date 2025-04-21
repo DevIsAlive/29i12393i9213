@@ -116,3 +116,5 @@ const ShareModal = ({ isOpen, onClose, title = "Share", content = "Share this aw
     </div>
   );
 };
+
+export default ShareModal;
