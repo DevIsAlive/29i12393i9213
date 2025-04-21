@@ -2,8 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   output: 'export',
-  assetPrefix: '/finals-assistant/',
-  basePath: '/finals-assistant',
+  assetPrefix: '/29i12393i9213/',
+  basePath: '/29i12393i9213',
   images: {
     unoptimized: true,
   },

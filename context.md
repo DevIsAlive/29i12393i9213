@@ -43,4 +43,4 @@
 
 ## Deployment
 - Set up for GitHub Pages deployment
-- Repository: https://github.com/DevIsAlive/finals-assistant 
+- Repository: https://github.com/DevIsAlive/29i12393i9213 
