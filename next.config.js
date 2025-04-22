@@ -1,9 +1,20 @@
 /** @type {import('next').NextConfig} */
+
+// Determine repository name for GitHub Pages
+const repo = process.env.GITHUB_REPOSITORY?.split('/')[1] || 'webv4';
+const basePath = process.env.NODE_ENV === 'production' ? `/${repo}` : '';
+
 const nextConfig = {
   reactStrictMode: true,
+  // Static export for GitHub Pages
   output: 'export',
-  assetPrefix: '/29i12393i9213/',
-  basePath: '/29i12393i9213',
+  // Set base path for GitHub Pages
+  basePath: basePath,
+  // Add trailing slash for better GitHub Pages compatibility
+  trailingSlash: true,
+  // Configure asset prefix
+  assetPrefix: basePath,
+  // Optimize images for static export
   images: {
     unoptimized: true,
   },
