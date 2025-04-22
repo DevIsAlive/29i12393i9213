@@ -27,7 +27,7 @@ const pricingPlans = [
   {
     id: 'pro',
     name: 'Pro',
-    price: '$5.99',
+    price: '$2.99',
     duration: '/month',
     description: 'Advanced features for serious gamers',
     features: [
@@ -51,8 +51,8 @@ const pricingPlans = [
   {
     id: 'elite',
     name: 'Elite',
-    price: '$12.99',
-    duration: '/month',
+    price: '$5',
+    duration: 'Forever',
     description: 'Ultimate package for competitive players',
     features: [
       'Pro features +',
@@ -530,7 +530,7 @@ const Pricing = () => {
             </span> pricing
           </h2>
           <p className={`text-lg text-gray-300 max-w-2xl mx-auto transition-all duration-700 delay-300 transform ${visibleCards.includes('subtitle') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            Our pricing reflects a 20% payment processor fee, ensuring we deliver the best The Finals features while keeping costs fair and transparent.
+            Our pricing reflects a 35% payment processor fee, ensuring we deliver the best The Finals features while keeping costs fair and transparent.
           </p>
         </div>
 
